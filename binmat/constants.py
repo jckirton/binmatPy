@@ -31,7 +31,7 @@ CARD_VALUES = {
 
 TEAMS = {"d": 0, "defender": 0, 0: "defender", "a": 1, "attacker": 1, 1: "attacker"}
 
-OP_FACE_UP = {
-    "p": False,
-    "u": True,
-}
+# OP_FACE_UP = {
+#     "p": False,
+#     "u": True,
+# }

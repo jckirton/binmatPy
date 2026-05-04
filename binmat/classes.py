@@ -2,8 +2,8 @@ from random import shuffle
 from copy import deepcopy
 from typing import Literal
 
-from constants import AXIOMS, CARD_VALUES, TEAMS
-from errors import InvalidOp, DrainedDeck
+from .constants import AXIOMS, CARD_VALUES, TEAMS
+from .errors import InvalidOp, DrainedDeck
 
 
 class Card:
@@ -643,15 +643,6 @@ class Op:
                     raise InvalidOp()
         except IndexError:
             raise InvalidOp()
-
-
-class Turn: ...
-
-
-class Game: ...
-
-
-class State: ...
 
 
 # decks = Whole_Deck().generate_lane_decks()
