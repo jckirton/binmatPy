@@ -661,27 +661,27 @@ class State: ...
 # d0 = Player(0, 0)
 # a0 = Player(1, 0)
 
-temp = Discard(
-    False,
-    [
-        Card("!", "a"),
-        Card("!", "2"),
-        Card("!", "3"),
-        Card("!", "@"),
-        Card("^", "a"),
-        Card("%", "*"),
-        Card("+", ">"),
-    ],
-)
+# temp = Discard(
+#     False,
+#     [
+#         Card("!", "a"),
+#         Card("!", "2"),
+#         Card("!", "3"),
+#         Card("!", "@"),
+#         Card("^", "a"),
+#         Card("%", "*"),
+#         Card("+", ">"),
+#     ],
+# )
 
-t2 = Deck([], temp)
-t3 = Deck([])
+# t2 = Deck([], temp)
+# t3 = Deck([])
 
-print(t2)
-print(temp)
-print(t2.draw())
-print(t2)
-print(temp)
+# print(t2)
+# print(temp)
+# print(t2.draw())
+# print(t2)
+# print(temp)
 
 # print(Op(d0, "d0").__dict__)
 # print(Op(d0, "pa0").__dict__)
