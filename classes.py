@@ -3,7 +3,7 @@ from copy import deepcopy
 from typing import Literal
 
 from constants import AXIOMS, CARD_VALUES, TEAMS
-from errors import InvalidOp
+from errors import InvalidOp, DrainedDeck
 
 
 class Card:
@@ -15,8 +15,8 @@ class Card:
         axiom (str): The card's suit, typically one of "%", "&", "+", "!", "^", "#".
         value (str): The value of the card, in symbol form ("@" and not "TRAP", etc.).
         hidden (bool): If the card is hidden. Card is visible to all parties when False.
-        face_up (bool): If the card is face-up. Face-up cards are always visible.
-        team (int | None): If the card is in the posession of a team. Posessing teams are able to see hidden cards.
+        face_up (bool): If the card is face-up. Face-up cards are always visible, overriding being hidden.
+        team (int | None): If the card is in the posession of a team, as defined in constants.TEAMS. Posessing teams are able to see hidden cards.
     """
 
     def __init__(
@@ -110,7 +110,7 @@ class Discard:
     def append(self, card: Card) -> None:
         """Add card to the discard.
 
-        Appends card to the end of the Discard contents.
+        Appends card to the end of the discard's contents.
         Card attributes are modified automatically as part of this process.
 
         Args:
@@ -163,14 +163,14 @@ class Deck:
 
     def __init__(
         self,
-        contents: list[Card],
+        contents: list[Card] = [].copy(),
         discard: Discard | None = None,
         visible: bool = False,
     ) -> None:
         """Create a BINMAT deck.
 
         Args:
-            contents (list[Card]): Deck contents.
+            contents (list[Card]): Deck contents. Defaults to [].copy()
             discard (Discard | None, optional): The deck's associated discard. Defaults to None.
             visible (bool, optional): If the top card is visible. Defaults to False.
         """
@@ -199,19 +199,49 @@ class Deck:
             return "--"
 
     def draw(self) -> Card:
-        """Draw a card from the deck."""
+        """Draw a card from the deck.
 
-        return self.contents.pop()
+        Card is set to be hidden and not face-up.
+        Ownership is not updated.
+
+        Raises:
+            DrainedDeck: Draw not possible due to deck and associated discard being empty.
+
+        Returns:
+            Card: The drawn card.
+        """
+        if not self.contents:
+            if not self.discard:
+                raise DrainedDeck()
+            else:
+                self.contents = self.discard.recycle()
+
+        drawn = self.contents.pop()
+        drawn.face_up = False
+        drawn.hidden = True
+        return drawn
 
 
 class Whole_Deck:
+    """The full 72 card BINMAT deck.
+
+    Used to generate lane decks for game initialisation.
+    """
+
     def __init__(self) -> None:
         self.contents = [].copy()
         for axiom in AXIOMS:
             for value in CARD_VALUES:
                 self.contents.append(Card(axiom, value))
 
-    def generate_lane_decks(self):
+    def generate_lane_decks(self) -> list[Deck]:
+        """Generate lane decks.
+
+        Creates 6 new decks of 13 cards from a shuffled deep-copy of whole-deck contents.
+
+        Returns:
+            list[Deck]: List of 6 shuffled decks.
+        """
         shuffled_contents = deepcopy(self.contents)
         lane_decks: list[Deck] = [].copy()
         shuffle(shuffled_contents)
@@ -224,11 +254,40 @@ class Whole_Deck:
 
 
 class Stack:
+    """A BINMAT stack.
+
+    Contains a collection of Card objects, information on team association, and methods for displaying and placing cards to the stack.
+
+    Attributes:
+        contents (list[Card]): Stack contents.
+        team (int): The stack's associated team, as defined in constants.TEAMS. Affects how cards are updated on placement.
+    """
+
     def __init__(self, team: int = 0) -> None:
+        """Create a BINMAT stack.
+
+        Args:
+            team (int, optional): Associated team. Defaults to 0 (defender).
+        """
         self.team = team
         self.contents: list[Card] = [].copy()
 
-    def display(self, team: int | None = None):
+    def __len__(self):
+        return len(self.contents)
+
+    def __bool__(self):
+        return bool(self.contents)
+
+    def __repr__(self) -> str:
+        return repr(self.contents)
+
+    def display(self, team: int | None = None) -> str:
+        """Return the stack as displayed to the given team.
+
+        Args:
+            team (int | None, optional): The "viewing" team, as defined in constants.TEAMS. Defaults to None.
+        """
+
         out = [].copy()
         for card in self.contents:
             if team is not None:
@@ -237,22 +296,46 @@ class Stack:
                 out.append(repr(card))
         return " ".join(out)
 
-    def __repr__(self) -> str:
-        return repr(self.contents)
+    def append(self, card: Card) -> None:
+        """Add card to top of stack.
 
-    def append(self, card: Card):
+        Appends card to the end of the stack's contents.
+        Card is hidden and ownership is set to stack's team, but facing is unchanged.
+
+        Args:
+            card (Card): The card being added.
+        """
         card.team = self.team
+        card.hidden = True
         self.contents.append(card)
-
-    def __len__(self):
-        return len(self.contents)
-
-    def __bool__(self):
-        return bool(self.contents)
 
 
 class Lane:
-    def __init__(self, number: int, deck: Deck, attacker: bool = False) -> None:
+    """A BINMAT lane
+
+    Contains a lane "number", a deck, a discard, two stacks, and info on if it's an "attacker" lane.
+
+    Attributes:
+        number (str): The lane's "number". Mainly exists for debugging and internal reference.
+        deck (Deck): The lane deck.
+        discard (Discard): The lane discard.
+        d (Stack): The defender stack.
+        a (Stack): The attacker stack.
+        stacks (list[Stack]): The defender and attacker stacks in that order. Intended for referencing using team numbers.
+        attacker (bool): If the lane is an attacker pseudo-lane. Is passed for Discard creation.
+    """
+
+    def __init__(self, number: str, deck: Deck, attacker: bool = False) -> None:
+        """Create a BINMAT lane.
+
+        Takes a lane "number" and deck.
+        A discard is created, and set as the deck's associated discard.
+
+        Args:
+            number (str): Lane ID.
+            deck (Deck): The lane deck.
+            attacker (bool, optional): If lane is attacker lane.. Defaults to False.
+        """
         self.number = number
         self.deck = deck
         self.attacker = attacker
@@ -266,31 +349,73 @@ class Lane:
         return f"l{self.number}: {self.deck.display()}\nx{self.number}: {self.discard.display()}\nd{self.number}: {self.d.display()}\na{self.number}: {self.a.display()}"
 
     def combat(self, declaring_team: int):
+        """Declare combat in the lane.
+
+        Args:
+            declaring_team (int): The team declaring combat, as defined in constants.TEAMS.
+
+        Raises:
+            InvalidOp: Combat decleration was invalid.
+        """
+
         stacks = [self.d, self.a]
         if not stacks[declaring_team]:
             raise InvalidOp("Cannot declare combat with your stack empty.")
 
 
 class Hand:
+    """A BINMAT hand.
+
+    A collection of cards held by a player. Has methods for appending cards, and searching for cards based on a given search string (e.g. "9" or "a%").
+
+    Attributes:
+        contents (list[Card]): Hand contents.
+    """
+
     def __init__(self) -> None:
+        """Create a BINMAT hand."""
         self.contents = [].copy()
 
     def __repr__(self) -> str:
         return repr(self.contents)
 
-    def display(self, team: int | None = None):
+    def display(self, team: int | None = None) -> str:
+        """Return the hand as displayed to the given team.
+
+        Args:
+            team (int | None, optional): The "viewing" team, as defined in constants.TEAMS. Defaults to None.
+        """
+
         out = [].copy()
         for card in self.contents:
-            if team is not None:
-                out.append(card.display(team))
-            else:
-                out.append(repr(card))
+            out.append(card.display(team))
         return " ".join(out)
 
-    def append(self, card: Card):
+    def append(self, card: Card) -> None:
+        """Add card to hand.
+
+        Appends card to end of the hand contents.
+
+        Args:
+            card (Card): The card being added.
+        """
+
         self.contents.append(card)
 
     def take(self, search: str) -> Card:
+        """Take card from hand based on given search string.
+
+        Removes card from hand contents and returns the removed card. Like popping from a list.
+
+        Args:
+            search (str): Card to search for, using value ("9") or value and suit ("9%").
+
+        Raises:
+            LookupError: Search found no matches in hand contents.
+
+        Returns:
+            Card: The matched card.
+        """
         if search in self.contents:
             return self.contents.pop(self.contents.index(search))
         else:
@@ -304,7 +429,27 @@ class Hand:
 
 
 class Player:
+    """A BINMAT player.
+
+    Has a hand, identifying information, and methods for interacting with decks, discards, and stacks.
+
+    Attributes:
+        name (str): Player username.
+        team (int): Aligned team, as defined in constants.TEAMS.
+        ind (int): Index within team.
+        label (str): Label of player, as displayed in team list and binlog.
+        hand (Hand): The player's hand.
+    """
+
     def __init__(self, team: int, ind: int, name: str = "") -> None:
+        """Create a BINMAT player
+
+        Args:
+            team (int): Aligned team, as defined in constants.TEAMS
+            ind (int): Index in team.
+            name (str, optional): Player name, generated if none is given. Defaults to "".
+        """
+
         self.team = team
         self.ind = ind
         self.label = f"{["d","a"][team]}{hex(ind)[2]}"
@@ -320,10 +465,23 @@ class Player:
     # def __str__(self) -> str:
     #     return f"{self.label}: {repr(self.hand)}"
 
-    def display(self, team: int | None = None):
+    def display(self, team: int | None = None) -> str:
+        """Return the player as displayed to the given team.
+
+        Args:
+            team (int | None, optional): The "viewing" team, as defined in constants.TEAMS. Defaults to None.
+        """
         return f"{self.label}: {self.hand.display(team)}"
 
-    def draw(self, deck: Deck):
+    def draw(self, deck: Deck) -> None:
+        """Draw a card from a given deck.
+
+        Runs deck.draw(), sets attributes of drawn card, and adds card to the player's hand.
+
+        Args:
+            deck (Deck): The deck to draw from.
+        """
+
         card = deck.draw()
         card.hidden = True
         card.team = self.team
@@ -331,6 +489,18 @@ class Player:
         self.hand.append(card)
 
     def place(self, lane: Lane, card: str, face_up: bool = False):
+        """Place a card in a target lane.
+
+        Takes a card from the player's hand, and places it in a lane in the appropriate stack.
+
+        Args:
+            lane (Lane): The lane being targeted.
+            card (str): The card to take from the hand, as passed to Hand.take.
+            face_up (bool, optional): If the card is to be played face-up. Defaults to False.
+
+        Raises:
+            InvalidOp: The requested card does not exist in the player's hand.
+        """
         try:
             selected = self.hand.take(card)
             selected.face_up = face_up
@@ -340,6 +510,18 @@ class Player:
             print(InvalidOp(f"card {card} not in hand"))
 
     def discard(self, lane: Lane, card: str):
+        """Discard a card to a target lane.
+
+        Takes a card from the player's hand, and places it in a lane's discard.
+
+        Args:
+            lane (Lane): The lane being targeted.
+            card (str): The card to take from the hand, as passed to Hand.take.
+
+        Raises:
+            InvalidOp: The requested card does not exist in the player's hand.
+        """
+
         try:
             selected = self.hand.take(card)
             lane.discard.append(selected)
@@ -349,9 +531,27 @@ class Player:
 
 
 class Team:
+    """A BINMAT team.
+
+    Has a collection of players.
+
+    Attributes:
+        team (int): Team alignment, as defined in constants.TEAMS.
+        players (list[Player]): Players in the team.
+    """
+
     def __init__(
         self, team: int, players: list[str] = [].copy(), length: int | None = None
     ) -> None:
+        """Create a BINMAT team.
+
+        Can take either a list of player names, or a number of players to automatically generate.
+
+        Args:
+            team (int): Team alignment, as defined in constants.TEAMS.
+            players (list[str], optional): Names of players in team. Mutully exclusive with length. Defaults to [].copy().
+            length (int | None, optional): Number of players in team. Mutully exclusive with length. Defaults to None.
+        """
         self.team = team
 
         if length and not players:
@@ -368,8 +568,28 @@ class Team:
 
 
 class Op:
-    # actions = {"d": "draw", "p": "play", "u": "uplay", "x": "discard", "c": "combat"}
+    """A BINMAT op.
+
+    Takes an op given by the user, and parses information about the requested move.
+
+    Attributes:
+        acting_player (Player): The player submitting the op.
+        op (str): The op originally given.
+        action (str): The action parsed from the op.
+        lane (str): The target lane identifier.
+        card (str | None): The target card identifier, as would be passed into Hand.take.
+    """
+
     def __init__(self, acting_player: Player, op: str) -> None:
+        """Parse a BINMAT op.
+
+        Args:
+            acting_player (Player): Player submitting op.
+            op (str): Raw op, as given by the user.
+
+        Raises:
+            InvalidOp: The given op could not be parsed.
+        """
         self.acting_player = acting_player
         self.op = op
 
@@ -436,27 +656,32 @@ class State: ...
 
 # decks = Whole_Deck().generate_lane_decks()
 
-# lane0 = Lane(0, decks[0])
+# lane0 = Lane("0", decks[0])
 
 # d0 = Player(0, 0)
 # a0 = Player(1, 0)
 
-# temp = Discard(
-#     False,
-#     [
-#         Card("!", "a"),
-#         Card("!", "2"),
-#         Card("!", "3"),
-#         Card("!", "@"),
-#         Card("^", "a"),
-#         Card("%", "*"),
-#         Card("+", ">"),
-#     ],
-# )
+temp = Discard(
+    False,
+    [
+        Card("!", "a"),
+        Card("!", "2"),
+        Card("!", "3"),
+        Card("!", "@"),
+        Card("^", "a"),
+        Card("%", "*"),
+        Card("+", ">"),
+    ],
+)
 
-# print(temp.contents)
-# print(temp.recycle())
-# print(temp.contents)
+t2 = Deck([], temp)
+t3 = Deck([])
+
+print(t2)
+print(temp)
+print(t2.draw())
+print(t2)
+print(temp)
 
 # print(Op(d0, "d0").__dict__)
 # print(Op(d0, "pa0").__dict__)
