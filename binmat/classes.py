@@ -223,7 +223,7 @@ class Deck:
 
 
 class Whole_Deck:
-    """The full 72 card BINMAT deck.
+    """The full 78 card BINMAT deck.
 
     Used to generate lane decks for game initialisation.
     """
