@@ -85,14 +85,12 @@ class Discard:
         attacker (bool): If the discard is an attacker discard. This changes if the card is set to be face-up.
     """
 
-    def __init__(
-        self, attacker: bool = False, contents: list[Card] = [].copy()
-    ) -> None:
+    def __init__(self, attacker: bool = False, contents: list[Card] = []) -> None:
         """Create a BINMAT discard.
 
         Args:
             attacker (bool, optional): If the discard is an attacker discard. Defaults to False.
-            contents (list[Card], optional): Discard contents. Defaults to [].copy().
+            contents (list[Card], optional): Discard contents. Defaults to [].
         """
 
         self.contents: list[Card] = contents
@@ -163,14 +161,14 @@ class Deck:
 
     def __init__(
         self,
-        contents: list[Card] = [].copy(),
+        contents: list[Card] = [],
         discard: Discard | None = None,
         visible: bool = False,
     ) -> None:
         """Create a BINMAT deck.
 
         Args:
-            contents (list[Card]): Deck contents. Defaults to [].copy()
+            contents (list[Card]): Deck contents. Defaults to []
             discard (Discard | None, optional): The deck's associated discard. Defaults to None.
             visible (bool, optional): If the top card is visible. Defaults to False.
         """
@@ -229,7 +227,7 @@ class Whole_Deck:
     """
 
     def __init__(self) -> None:
-        self.contents = [].copy()
+        self.contents = []
         for axiom in AXIOMS:
             for value in CARD_VALUES:
                 self.contents.append(Card(axiom, value))
@@ -243,7 +241,7 @@ class Whole_Deck:
             list[Deck]: List of 6 shuffled decks.
         """
         shuffled_contents = deepcopy(self.contents)
-        lane_decks: list[Deck] = [].copy()
+        lane_decks: list[Deck] = []
         shuffle(shuffled_contents)
         for offset in range(6):
             start = offset * 13
@@ -270,7 +268,7 @@ class Stack:
             team (int, optional): Associated team. Defaults to 0 (defender).
         """
         self.team = team
-        self.contents: list[Card] = [].copy()
+        self.contents: list[Card] = []
 
     def __len__(self):
         return len(self.contents)
@@ -288,7 +286,7 @@ class Stack:
             team (int | None, optional): The "viewing" team, as defined in constants.TEAMS. Defaults to None.
         """
 
-        out = [].copy()
+        out = []
         for card in self.contents:
             if team is not None:
                 out.append(card.display(team))
@@ -374,7 +372,7 @@ class Hand:
 
     def __init__(self) -> None:
         """Create a BINMAT hand."""
-        self.contents = [].copy()
+        self.contents = []
 
     def __repr__(self) -> str:
         return repr(self.contents)
@@ -386,7 +384,7 @@ class Hand:
             team (int | None, optional): The "viewing" team, as defined in constants.TEAMS. Defaults to None.
         """
 
-        out = [].copy()
+        out = []
         for card in self.contents:
             out.append(card.display(team))
         return " ".join(out)
@@ -541,7 +539,7 @@ class Team:
     """
 
     def __init__(
-        self, team: int, players: list[str] = [].copy(), length: int | None = None
+        self, team: int, players: list[str] = [], length: int | None = None
     ) -> None:
         """Create a BINMAT team.
 
@@ -549,13 +547,13 @@ class Team:
 
         Args:
             team (int): Team alignment, as defined in constants.TEAMS.
-            players (list[str], optional): Names of players in team. Mutully exclusive with length. Defaults to [].copy().
+            players (list[str], optional): Names of players in team. Mutully exclusive with length. Defaults to [].
             length (int | None, optional): Number of players in team. Mutully exclusive with length. Defaults to None.
         """
         self.team = team
 
         if length and not players:
-            self.players = [].copy()
+            self.players = []
             for i in range(length):
                 self.players.append(Player(self.team, i))
         else:
