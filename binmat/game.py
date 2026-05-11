@@ -1,40 +1,10 @@
+from random import shuffle
 from copy import deepcopy
 
 
 from .constants import AXIOMS, CARD_VALUES, TEAMS
-from .classes import *
-from .errors import GameEnd
-
-# class Whole_Deck:
-#     """The full 78 card BINMAT deck.
-
-#     Used to generate lane decks for game initialisation.
-#     """
-
-#     def __init__(self) -> None:
-#         self.contents = []
-#         for axiom in AXIOMS:
-#             for value in CARD_VALUES:
-#                 self.contents.append(Card(axiom, value))
-
-#     def generate_lane_decks(self) -> list[Deck]:
-#         """Generate lane decks.
-
-#         Creates 6 new decks of 13 cards from a shuffled deep-copy of whole-deck contents.
-
-#         Returns:
-#             list[Deck]: List of 6 shuffled decks.
-#         """
-
-#         shuffled_contents = deepcopy(self.contents)
-#         lane_decks: list[Deck] = []
-#         shuffle(shuffled_contents)
-#         for offset in range(6):
-#             start = offset * 13
-#             lane_decks.append(Deck(shuffled_contents[start : start + 13]))
-#         for deck in lane_decks[3:]:
-#             deck.visible = True
-#         return lane_decks
+from .classes import Card, Pile, Discard, Deck, Stack, Lane, Hand, Player, Team, Op
+from .errors import GameEnd, InvalidOp
 
 
 class Game:
@@ -84,17 +54,47 @@ class Game:
             deck.visible = True
         return lane_decks
 
+    def display(self, team: int) -> str:
+        return (
+            f"{self.defenders}\n"
+            f"{self.attackers}\n"
+            "--------------\n"
+            f"{"\n".join(map(lambda p: p.display(team), self.defenders))}\n"
+            f"{"\n".join(map(lambda p: p.display(team), self.attackers))}\n"
+            "--------------\n"
+            f"{"\n".join(map(lambda lane: self.lanes[lane].display(team), self.lanes))}\n"
+        )
+
     def do_turn(self) -> None:
         acting_team: Team = self.defenders if self.turn % 2 == 0 else self.attackers
         ops: list[Op] = []
 
+        print(self.display(acting_team.team))
+
         if self.turn == self.max_turns:
             raise GameEnd()
 
-        for player in acting_team:
-            # get op for each player
-            ops.append(Op(player, input(f"{player} op: ")))
+        try:
+            for player in acting_team:
+                # get op for each player
+                ops.append(Op(player, input(f"{player} op: ")))
 
-        print(ops)
+            print(ops)
+
+            for op in ops:
+                match op.action:
+                    case "draw":
+                        op.acting_player.draw(self.lanes[op.lane].deck)
+                    case "play":
+                        op.acting_player.place(self.lanes[op.lane], op.card)
+                    case "uplay":
+                        op.acting_player.place(self.lanes[op.lane], op.card, True)
+                    case "discard":
+                        op.acting_player.discard(self.lanes[op.lane], op.card)
+                    case "combat":
+                        raise NotImplementedError()
+
+        except InvalidOp as e:
+            print(f"Invalid operation: {e}")
 
         self.turn += 1

@@ -4,6 +4,19 @@ from typing import Literal
 from .constants import TEAMS
 from .errors import InvalidOp, DrainedDeck
 
+# __all__ = [
+#     "Card",
+#     "Pile",
+#     "Discard",
+#     "Deck",
+#     "Stack",
+#     "Lane",
+#     "Hand",
+#     "Player",
+#     "Team",
+#     "Op",
+# ]
+
 
 class Card:
     """A BINMAT card.
@@ -43,10 +56,10 @@ class Card:
         self.team = team
 
     def __repr__(self):
-        if self.hidden:
-            return f"{self.value}{self.axiom}x"
-        elif self.face_up:
+        if self.face_up:
             return f"{self.value}{self.axiom}u"
+        elif self.hidden:
+            return f"{self.value}{self.axiom}x"
         else:
             return f"{self.value}{self.axiom}"
 
@@ -342,6 +355,9 @@ class Lane:
     def __str__(self):
         return f"l{self.number}: {self.deck.display()}\nx{self.number}: {self.discard.display()}\nd{self.number}: {self.d.display()}\na{self.number}: {self.a.display()}"
 
+    def display(self, team):
+        return f"l{self.number}: {self.deck.display()}\nx{self.number}: {self.discard.display()}\nd{self.number}: {self.d.display(team)}\na{self.number}: {self.a.display(team)}"
+
     def combat(self, declaring_team: int):
         """Declare combat in the lane.
 
@@ -473,7 +489,7 @@ class Player:
             team (int | None, optional): The "viewing" team, as defined in constants.TEAMS. Defaults to None.
         """
 
-        return f"{self.label}: {self.hand.display(team)}"
+        return f"h{self.label}: {self.hand.display(team)}"
 
     def draw(self, deck: Deck) -> None:
         """Draw a card from a given deck.
@@ -603,7 +619,7 @@ class Op:
 
         self.action: Literal["draw", "play", "uplay", "discard", "combat"]
         self.lane: str
-        self.card: str | None = None
+        self.card: str = ""
 
         try:
             match op[0]:
@@ -651,6 +667,6 @@ class Op:
                     raise InvalidOp("unknown action")
         except IndexError:
             raise InvalidOp("insufficient information")
-    
+
     def __repr__(self) -> str:
         return repr(self.__dict__)
