@@ -63,7 +63,7 @@ class Game:
             f"{"\n".join(map(lambda p: p.display(team), self.attackers))}\n"
             "--------------\n"
             # f"{"\n".join(map(lambda lane: self.lanes[lane].display(team), self.lanes))}\n"
-            f"{str(self.turn).ljust(3, "0")} -----\n"
+            f"{str(self.turn).rjust(3, "0")} -----\n"
             f"{self.lanes["0"].discard.display().ljust(3)}{self.lanes["1"].discard.display().ljust(3)}{self.lanes["2"].discard.display().ljust(3)}{self.lanes["3"].discard.display().ljust(3)}{self.lanes["4"].discard.display().ljust(3)}{self.lanes["5"].discard.display().ljust(3)}\n"
             f"{self.lanes["0"].deck.display().ljust(3)}{self.lanes["1"].deck.display().ljust(3)}{self.lanes["2"].deck.display().ljust(3)}{self.lanes["3"].deck.display().ljust(3)}{self.lanes["4"].deck.display().ljust(3)}{self.lanes["5"].deck.display().ljust(3)}\n"
             f"{self.lanes["0"].d.display(team).ljust(3)}{self.lanes["1"].d.display(team).ljust(3)}{self.lanes["2"].d.display(team).ljust(3)}{self.lanes["3"].d.display(team).ljust(3)}{self.lanes["4"].d.display(team).ljust(3)}{self.lanes["5"].d.display(team).ljust(3)}\n"
