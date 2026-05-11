@@ -164,7 +164,7 @@ class Discard:
         if len(self.contents) != 0:
             return repr(self.contents[-1])
         else:
-            return "--"
+            return ""
 
     def recycle(self) -> list[Card]:
         """Recycle the discard.
@@ -231,7 +231,7 @@ class Deck:
             else:
                 return "X"
         else:
-            return "--"
+            return "---"
 
     def draw(self) -> Card:
         """Draw a card from the deck.
@@ -294,13 +294,14 @@ class Stack:
             team (int | None, optional): The "viewing" team, as defined in constants.TEAMS. Defaults to None.
         """
 
-        out = []
-        for card in self.contents:
-            if team is not None:
-                out.append(card.display(team))
-            else:
-                out.append(repr(card))
-        return " ".join(out)
+        # out = []
+        # for card in self.contents:
+        #     if team is not None:
+        #         out.append(card.display(team))
+        #     else:
+        #         out.append(repr(card))
+        # return " ".join(out)
+        return self.contents[-1].display(team) if len(self.contents) > 0 else ""
 
     def append(self, card: Card) -> None:
         """Add card to top of stack.
