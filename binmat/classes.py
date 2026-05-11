@@ -119,7 +119,7 @@ class Discard:
         attacker (bool): If the discard is an attacker discard. This changes if the card is set to be face-up.
     """
 
-    def __init__(self, attacker: bool = False, contents: list[Card] = []) -> None:
+    def __init__(self, attacker: bool = False) -> None:
         """Create a BINMAT discard.
 
         Args:
@@ -127,7 +127,8 @@ class Discard:
             contents (list[Card], optional): Discard contents. Defaults to [].
         """
 
-        self.contents: list[Card] = contents
+        # self.contents: list[Card] = contents
+        self.contents: list[Card] = []
         self.attacker: bool = attacker
 
     def __len__(self):
@@ -196,7 +197,7 @@ class Deck:
 
     def __init__(
         self,
-        contents: list[Card] = [],
+        contents: list[Card] | None = None,
         discard: Discard | None = None,
         visible: bool = False,
     ) -> None:
@@ -208,7 +209,7 @@ class Deck:
             visible (bool, optional): If the top card is visible. Defaults to False.
         """
 
-        self.contents = contents
+        self.contents = contents if contents is not None else []
         self.visible = visible
         self.discard = discard
 
