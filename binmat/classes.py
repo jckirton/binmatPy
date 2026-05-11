@@ -1,8 +1,7 @@
 from random import shuffle
-from copy import deepcopy
 from typing import Literal
 
-from .constants import AXIOMS, CARD_VALUES, TEAMS
+from .constants import TEAMS
 from .errors import InvalidOp, DrainedDeck
 
 
@@ -75,6 +74,28 @@ class Card:
             return self is value
 
 
+class Pile:
+    """Base class for a collection of Card objects."""
+
+    def __init__(self, contents: list[Card] = []) -> None:
+        self.contents = contents
+
+    def __len__(self) -> int:
+        return len(self.contents)
+
+    def __bool__(self) -> bool:
+        return bool(self.contents)
+
+    def __repr__(self) -> str:
+        return repr(self.contents)
+
+    def __contains__(self, item: object) -> bool:
+        return item in self.contents
+
+    def append(self, card: Card) -> None:
+        self.contents.append(card)
+
+
 class Discard:
     """A BINMAT discard.
 
@@ -125,6 +146,7 @@ class Discard:
 
     def display(self) -> str:
         """Return the discard as displayed to players."""
+
         if len(self.contents) != 0:
             return repr(self.contents[-1])
         else:
@@ -188,6 +210,7 @@ class Deck:
 
     def display(self) -> str:
         """Return the deck as displayed to players."""
+
         if len(self.contents) != 0:
             if self.visible:
                 return repr(self.contents[-1])
@@ -208,6 +231,7 @@ class Deck:
         Returns:
             Card: The drawn card.
         """
+
         if not self.contents:
             if not self.discard:
                 raise DrainedDeck()
@@ -218,37 +242,6 @@ class Deck:
         drawn.face_up = False
         drawn.hidden = True
         return drawn
-
-
-class Whole_Deck:
-    """The full 78 card BINMAT deck.
-
-    Used to generate lane decks for game initialisation.
-    """
-
-    def __init__(self) -> None:
-        self.contents = []
-        for axiom in AXIOMS:
-            for value in CARD_VALUES:
-                self.contents.append(Card(axiom, value))
-
-    def generate_lane_decks(self) -> list[Deck]:
-        """Generate lane decks.
-
-        Creates 6 new decks of 13 cards from a shuffled deep-copy of whole-deck contents.
-
-        Returns:
-            list[Deck]: List of 6 shuffled decks.
-        """
-        shuffled_contents = deepcopy(self.contents)
-        lane_decks: list[Deck] = []
-        shuffle(shuffled_contents)
-        for offset in range(6):
-            start = offset * 13
-            lane_decks.append(Deck(shuffled_contents[start : start + 13]))
-        for deck in lane_decks[3:]:
-            deck.visible = True
-        return lane_decks
 
 
 class Stack:
@@ -267,6 +260,7 @@ class Stack:
         Args:
             team (int, optional): Associated team. Defaults to 0 (defender).
         """
+
         self.team = team
         self.contents: list[Card] = []
 
@@ -303,6 +297,7 @@ class Stack:
         Args:
             card (Card): The card being added.
         """
+
         card.team = self.team
         card.hidden = True
         self.contents.append(card)
@@ -334,6 +329,7 @@ class Lane:
             deck (Deck): The lane deck.
             attacker (bool, optional): If lane is attacker lane.. Defaults to False.
         """
+
         self.number = number
         self.deck = deck
         self.attacker = attacker
@@ -356,6 +352,8 @@ class Lane:
             InvalidOp: Combat decleration was invalid.
         """
 
+        raise NotImplementedError()
+
         stacks = [self.d, self.a]
         if not stacks[declaring_team]:
             raise InvalidOp("Cannot declare combat with your stack empty.")
@@ -372,6 +370,7 @@ class Hand:
 
     def __init__(self) -> None:
         """Create a BINMAT hand."""
+
         self.contents = []
 
     def __repr__(self) -> str:
@@ -414,6 +413,7 @@ class Hand:
         Returns:
             Card: The matched card.
         """
+
         if search in self.contents:
             return self.contents.pop(self.contents.index(search))
         else:
@@ -458,6 +458,9 @@ class Player:
             self.name = f"{TEAMS[team]}_{hex(ind)[2]}"
 
     def __repr__(self) -> str:
+        return self.label
+
+    def __str__(self) -> str:
         return f"{self.label}: {repr(self.hand)}"
 
     # def __str__(self) -> str:
@@ -469,6 +472,7 @@ class Player:
         Args:
             team (int | None, optional): The "viewing" team, as defined in constants.TEAMS. Defaults to None.
         """
+
         return f"{self.label}: {self.hand.display(team)}"
 
     def draw(self, deck: Deck) -> None:
@@ -499,7 +503,10 @@ class Player:
         Raises:
             InvalidOp: The requested card does not exist in the player's hand.
         """
+
         try:
+            if lane.number == "a":
+                raise InvalidOp("cannot play cards to the attacker pseudo-lane")
             selected = self.hand.take(card)
             selected.face_up = face_up
             lane.stacks[self.team].append(selected)
@@ -538,31 +545,33 @@ class Team:
         players (list[Player]): Players in the team.
     """
 
-    def __init__(
-        self, team: int, players: list[str] = [], length: int | None = None
-    ) -> None:
+    def __init__(self, team: int, players: list[str] | int = 0) -> None:
         """Create a BINMAT team.
 
         Can take either a list of player names, or a number of players to automatically generate.
 
         Args:
             team (int): Team alignment, as defined in constants.TEAMS.
-            players (list[str], optional): Names of players in team. Mutully exclusive with length. Defaults to [].
-            length (int | None, optional): Number of players in team. Mutully exclusive with length. Defaults to None.
+            players (list[str], optional): Players in team as a list of names or number of players. Defaults to 0.
         """
-        self.team = team
 
-        if length and not players:
+        self.team: int = team
+        self.players: list[Player]
+
+        if type(players) == int:
             self.players = []
-            for i in range(length):
+            for i in range(players):
                 self.players.append(Player(self.team, i))
-        else:
-            self.players = map(
-                lambda p: Player(self.team, players.index(p), p), players
+        elif type(players) == list:
+            self.players = list(
+                map(lambda p: Player(self.team, players.index(p), p), players)
             )
 
     def __str__(self) -> str:
         return "\n".join(map(lambda p: f"{p.label} {p.name}", self.players))
+
+    def __iter__(self):
+        return iter(self.players)
 
 
 class Op:
@@ -588,6 +597,7 @@ class Op:
         Raises:
             InvalidOp: The given op could not be parsed.
         """
+
         self.acting_player = acting_player
         self.op = op
 
@@ -638,84 +648,9 @@ class Op:
                     self.lane = op[1]
                 case _:
                     print("unknown action")
-                    raise InvalidOp()
+                    raise InvalidOp("unknown action")
         except IndexError:
-            raise InvalidOp()
-
-
-# decks = Whole_Deck().generate_lane_decks()
-
-# lane0 = Lane("0", decks[0])
-
-# d0 = Player(0, 0)
-# a0 = Player(1, 0)
-
-# temp = Discard(
-#     False,
-#     [
-#         Card("!", "a"),
-#         Card("!", "2"),
-#         Card("!", "3"),
-#         Card("!", "@"),
-#         Card("^", "a"),
-#         Card("%", "*"),
-#         Card("+", ">"),
-#     ],
-# )
-
-# t2 = Deck([], temp)
-# t3 = Deck([])
-
-# print(t2)
-# print(temp)
-# print(t2.draw())
-# print(t2)
-# print(temp)
-
-# print(Op(d0, "d0").__dict__)
-# print(Op(d0, "pa0").__dict__)
-# print(Op(d0, "u>0").__dict__)
-# print(Op(d0, "x>0").__dict__)
-# print(Op(d0, "c0").__dict__)
-# print(Op(d0, "pa").__dict__)
-
-# temp_deck = Deck(
-#     [Card("!", "2"), Card("!", "3"), Card("!", "4"), Card("!", "5"), Card("%", "5")]
-# )
-
-# d0.draw(temp_deck)
-# a0.draw(temp_deck)
-# d0.draw(temp_deck)
-# a0.draw(temp_deck)
-# d0.draw(temp_deck)
-
-# print(temp_deck)
-# print(d0)
-# print(a0)
-# print(temp_deck)
-# print(lane0)
-
-# print("\n\n\n\n\n")
-
-# d0.place(lane0, "5")
-# a0.place(lane0, "5")
-# print(lane0)
-# d0.place(lane0, "4")
-# a0.place(lane0, "4")
-# print(lane0)
-
-
-# print(lane0)
-# print(lane0.__dict__)
-
-# temp = [Card("%", "4"), Card("&", "4"), Card("+", "5"), Card("^", "4"), Card("!", "a")]
-
-# print("4" in temp)
-# print("4%" in temp)
-# print("4!" in temp)
-
-# print(Team(0, length=16))
-# print(Team(1, length=16))
-
-# print(Team(0, ["foo", "bar"]))
-# print(Team(1, ["xar", "qar"]))
+            raise InvalidOp("insufficient information")
+    
+    def __repr__(self) -> str:
+        return repr(self.__dict__)

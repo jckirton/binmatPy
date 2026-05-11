@@ -23,15 +23,11 @@ CARD_VALUES = {
     "@": "TRAP",
 }
 
-
-# class TEAMS:
-#     DEFENDER = 0
-#     ATTACKER = 1
-
-
-TEAMS = {"d": 0, "defender": 0, 0: "defender", "a": 1, "attacker": 1, 1: "attacker"}
-
-# OP_FACE_UP = {
-#     "p": False,
-#     "u": True,
-# }
+TEAMS = {
+    "d": 0,
+    "defender": 0,
+    0: "defender",
+    "a": 1,
+    "attacker": 1,
+    1: "attacker",
+}
