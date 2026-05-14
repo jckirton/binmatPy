@@ -63,6 +63,17 @@ class Card:
         else:
             return f"{self.value}{self.axiom}"
 
+    def __str__(self) -> str:
+        return self.display()
+
+    def __eq__(self, value: object) -> bool:
+        if type(value) is str:
+            return value in f"{self.value}{self.axiom}"
+        # elif type(value) is Card:
+        #     return self.axiom == value.axiom and self.value == value.value
+        else:
+            return self is value
+
     def display(self, team: int | None = None) -> str:
         """Return the card as displayed to the given team.
 
@@ -77,14 +88,6 @@ class Card:
             return f"{self.value}{self.axiom}"
         else:
             return "X"
-
-    def __eq__(self, value: object) -> bool:
-        if type(value) is str:
-            return value in f"{self.value}{self.axiom}"
-        # elif type(value) is Card:
-        #     return self.axiom == value.axiom and self.value == value.value
-        else:
-            return self is value
 
 
 class Pile:
@@ -162,7 +165,10 @@ class Discard:
         """Return the discard as displayed to players."""
 
         if len(self.contents) != 0:
-            return repr(self.contents[-1])
+            if self.attacker:
+                return " ".join(map(lambda c: c.display(), self.contents))
+            else:
+                return repr(self.contents[-1])
         else:
             return ""
 
@@ -375,9 +381,11 @@ class Lane:
         self.stacks = [self.d, self.a]
 
     def __str__(self):
-        return f"l{self.number}: {self.deck.display()}\nx{self.number}: {self.discard.display()}\nd{self.number}: {self.d.display()}\na{self.number}: {self.a.display()}"
+        return self.display()
 
-    def display(self, team):
+    def display(self, team: int | None = None) -> str:
+        if self.attacker:
+            return f"{f"{self.number} {self.deck.display()}\n" if self.deck else ""}{f"x{self.number} {self.discard.display()}\n" if self.discard else ""}"
         return f"l{self.number}: {self.deck.display()}\nx{self.number}: {self.discard.display()}\nd{self.number}: {self.d.display(team)}\na{self.number}: {self.a.display(team)}"
 
     def combat(self, declaring_team: int):
@@ -406,10 +414,11 @@ class Hand:
         contents (list[Card]): Hand contents.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, team: int) -> None:
         """Create a BINMAT hand."""
 
         self.contents = []
+        self.team = team
 
     def __repr__(self) -> str:
         return repr(self.contents)
@@ -420,6 +429,9 @@ class Hand:
         Args:
             team (int | None, optional): The "viewing" team, as defined in constants.TEAMS. Defaults to None.
         """
+
+        if team != self.team:
+            return str(len(self))
 
         out = []
         for card in self.contents:
@@ -490,7 +502,7 @@ class Player:
         self.ind = ind
         self.label = f"{["d","a"][team]}{hex(ind)[2]}"
         self.name = name
-        self.hand = Hand()
+        self.hand = Hand(self.team)
 
         if not self.name:
             self.name = f"{TEAMS[team]}_{hex(ind)[2]}"
@@ -500,6 +512,9 @@ class Player:
 
     def __str__(self) -> str:
         return f"{self.label}: {repr(self.hand)}"
+
+    def __bool__(self) -> bool:
+        return bool(self.hand)
 
     # def __str__(self) -> str:
     #     return f"{self.label}: {repr(self.hand)}"
@@ -511,7 +526,7 @@ class Player:
             team (int | None, optional): The "viewing" team, as defined in constants.TEAMS. Defaults to None.
         """
 
-        return f"h{self.label}: {self.hand.display(team)}"
+        return f"h{self.label} {self.hand.display(team)}"
 
     def draw(self, deck: Deck) -> None:
         """Draw a card from a given deck.
@@ -646,11 +661,11 @@ class Op:
         try:
             match op[0]:
                 case "d":
-                    print("draw op")
+                    # print("draw op")
                     self.action = "draw"
                     self.lane = op[1]
                 case "p":
-                    print("play op")
+                    # print("play op")
                     self.action = "play"
                     match op[2]:
                         case "%" | "&" | "+" | "!" | "^" | "#":
@@ -661,7 +676,7 @@ class Op:
                             self.lane = op[2]
 
                 case "u":
-                    print("uplay op")
+                    # print("uplay op")
                     self.action = "uplay"
                     match op[2]:
                         case "%" | "&" | "+" | "!" | "^" | "#":
@@ -671,7 +686,7 @@ class Op:
                             self.card = op[1]
                             self.lane = op[2]
                 case "x":
-                    print("discard op")
+                    # print("discard op")
                     self.action = "discard"
                     match op[2]:
                         case "%" | "&" | "+" | "!" | "^" | "#":
@@ -681,11 +696,11 @@ class Op:
                             self.card = op[1]
                             self.lane = op[2]
                 case "c":
-                    print("combat op")
+                    # print("combat op")
                     self.action = "combat"
                     self.lane = op[1]
                 case _:
-                    print("unknown action")
+                    # print("unknown action")
                     raise InvalidOp("unknown action")
         except IndexError:
             raise InvalidOp("insufficient information")

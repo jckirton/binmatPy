@@ -4,7 +4,7 @@ from copy import deepcopy
 
 from .constants import AXIOMS, CARD_VALUES, TEAMS
 from .classes import Card, Pile, Discard, Deck, Stack, Lane, Hand, Player, Team, Op
-from .errors import GameEnd, InvalidOp
+from .errors import GameEnd, InvalidOp, DefenderWin
 
 
 class Game:
@@ -59,15 +59,21 @@ class Game:
             f"{self.defenders}\n"
             f"{self.attackers}\n"
             "--------------\n"
-            f"{"\n".join(map(lambda p: p.display(team), self.defenders))}\n"
-            f"{"\n".join(map(lambda p: p.display(team), self.attackers))}\n"
+            # f"{"\n".join(map(lambda p: p.display(team), self.defenders))}\n"
+            # f"{"\n".join(map(lambda p: p.display(team), self.attackers))}\n"
+            f"{f"{"\n".join(map(lambda p: p.display(team), filter(None, self.defenders)))}\n" if list(filter(None, self.defenders)) else ""}"
+            f"{f"{"\n".join(map(lambda p: p.display(team), filter(None, self.attackers)))}\n" if list(filter(None, self.attackers)) else ""}"
+            f"{self.lanes["a"].display()}"
+            # "--------------\n"
+            # f"a {self.lanes["a"].deck.display()}\n"
+            # f"xa {self.lanes["a"].discard.display()}\n"
             "--------------\n"
             # f"{"\n".join(map(lambda lane: self.lanes[lane].display(team), self.lanes))}\n"
             f"{str(self.turn).rjust(3, "0")} -----\n"
-            f"{self.lanes["0"].discard.display().ljust(3)}{self.lanes["1"].discard.display().ljust(3)}{self.lanes["2"].discard.display().ljust(3)}{self.lanes["3"].discard.display().ljust(3)}{self.lanes["4"].discard.display().ljust(3)}{self.lanes["5"].discard.display().ljust(3)}\n"
-            f"{self.lanes["0"].deck.display().ljust(3)}{self.lanes["1"].deck.display().ljust(3)}{self.lanes["2"].deck.display().ljust(3)}{self.lanes["3"].deck.display().ljust(3)}{self.lanes["4"].deck.display().ljust(3)}{self.lanes["5"].deck.display().ljust(3)}\n"
-            f"{self.lanes["0"].d.display(team).ljust(3)}{self.lanes["1"].d.display(team).ljust(3)}{self.lanes["2"].d.display(team).ljust(3)}{self.lanes["3"].d.display(team).ljust(3)}{self.lanes["4"].d.display(team).ljust(3)}{self.lanes["5"].d.display(team).ljust(3)}\n"
-            f"{self.lanes["0"].a.display(team).ljust(3)}{self.lanes["1"].a.display(team).ljust(3)}{self.lanes["2"].a.display(team).ljust(3)}{self.lanes["3"].a.display(team).ljust(3)}{self.lanes["4"].a.display(team).ljust(3)}{self.lanes["5"].a.display(team).ljust(3)}\n"
+            f"{self.lanes["0"].discard.display().ljust(4)}{self.lanes["1"].discard.display().ljust(4)}{self.lanes["2"].discard.display().ljust(4)}{self.lanes["3"].discard.display().ljust(4)}{self.lanes["4"].discard.display().ljust(4)}{self.lanes["5"].discard.display().ljust(4)}\n"
+            f"{self.lanes["0"].deck.display().ljust(4)}{self.lanes["1"].deck.display().ljust(4)}{self.lanes["2"].deck.display().ljust(4)}{self.lanes["3"].deck.display().ljust(4)}{self.lanes["4"].deck.display().ljust(4)}{self.lanes["5"].deck.display().ljust(4)}\n"
+            f"{self.lanes["0"].d.display(team).ljust(4)}{self.lanes["1"].d.display(team).ljust(4)}{self.lanes["2"].d.display(team).ljust(4)}{self.lanes["3"].d.display(team).ljust(4)}{self.lanes["4"].d.display(team).ljust(4)}{self.lanes["5"].d.display(team).ljust(4)}\n"
+            f"{self.lanes["0"].a.display(team).ljust(4)}{self.lanes["1"].a.display(team).ljust(4)}{self.lanes["2"].a.display(team).ljust(4)}{self.lanes["3"].a.display(team).ljust(4)}{self.lanes["4"].a.display(team).ljust(4)}{self.lanes["5"].a.display(team).ljust(4)}\n"
         )
 
     def do_turn(self) -> None:
@@ -77,14 +83,14 @@ class Game:
         print(self.display(acting_team.team))
 
         if self.turn == self.max_turns:
-            raise GameEnd()
+            raise DefenderWin()
 
         try:
             for player in acting_team:
                 # get op for each player
                 ops.append(Op(player, input(f"{player} op: ")))
 
-            print(ops)
+            # print(ops)
 
             for op in ops:
                 match op.action:
