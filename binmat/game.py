@@ -4,7 +4,7 @@ from copy import deepcopy
 
 from .constants import AXIOMS, CARD_VALUES, TEAMS
 from .classes import Card, Pile, Discard, Deck, Stack, Lane, Hand, Player, Team, Op
-from .errors import GameEnd, InvalidOp, DefenderWin
+from .errors import GameEnd, InvalidOp, DefenderWin, DrainedDeck, AttackerWin
 
 
 class Game:
@@ -95,7 +95,15 @@ class Game:
             for op in ops:
                 match op.action:
                     case "draw":
-                        op.acting_player.draw(self.lanes[op.lane].deck)
+                        try:
+                            op.acting_player.draw(self.lanes[op.lane].deck)
+                        except DrainedDeck:
+                            if op.acting_player.team == TEAMS["attacker"]:
+                                raise AttackerWin()
+                            else:
+                                raise InvalidOp(
+                                    "defender cannot draw from drained lane"
+                                )
                     case "play":
                         op.acting_player.place(self.lanes[op.lane], op.card)
                     case "uplay":
@@ -103,7 +111,44 @@ class Game:
                     case "discard":
                         op.acting_player.discard(self.lanes[op.lane], op.card)
                     case "combat":
-                        raise NotImplementedError()
+                        # raise NotImplementedError()
+
+                        lane = self.lanes[op.lane]
+                        xl = lane.discard
+                        xa = self.lanes["a"].discard
+
+                        result = lane.combat(op.acting_player.team)
+                        print(result.__dict__)
+
+                        lane.discard.extend(result.to_xl)
+                        xa.extend(result.to_xa)
+
+                        if result.bounce:
+                            ...
+                        elif result.defender_win:
+                            xl.extend(lane.a)
+                            lane.a.clear()
+                        else:
+                            try:
+                                i = 0
+                                for _ in range(result.damage):
+                                    if lane.d:
+                                        xa.append(lane.d.pop())
+                                    else:
+                                        if op.acting_player.team == TEAMS["defender"]:
+                                            self.attackers[
+                                                i % (len(self.attackers) - 1)
+                                            ].draw(lane.deck)
+                                            i += 1
+                                        else:
+                                            op.acting_player.draw(lane.deck)
+                            except DrainedDeck:
+                                raise AttackerWin()
+
+                        for card in lane.d:
+                            card.face_up = True
+                        xa.extend(lane.a)
+                        lane.a.clear()
 
         except InvalidOp as e:
             print(f"Invalid operation: {e}")

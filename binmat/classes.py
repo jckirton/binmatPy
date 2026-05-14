@@ -93,8 +93,8 @@ class Card:
 class Pile:
     """Base class for a collection of Card objects."""
 
-    def __init__(self, contents: list[Card] = []) -> None:
-        self.contents = contents
+    def __init__(self, contents: list[Card] | None = None) -> None:
+        self.contents = contents if contents else []
 
     def __len__(self) -> int:
         return len(self.contents)
@@ -108,11 +108,30 @@ class Pile:
     def __contains__(self, item: object) -> bool:
         return item in self.contents
 
+    def __iter__(self):
+        return iter(self.contents)
+
     def append(self, card: Card) -> None:
         self.contents.append(card)
 
+    def pop(self, index: int = -1) -> Card:
+        return self.contents.pop(index)
 
-class Discard:
+    def count(self, value) -> int:
+        return self.contents.count(value)
+
+    def extend(self, iterable) -> None:
+        for item in iterable:
+            self.append(item)
+
+    def clear(self) -> None:
+        self.contents = []
+
+    def index(self, value) -> int:
+        return self.contents.index(value)
+
+
+class Discard(Pile):
     """A BINMAT discard.
 
     Contains a collection of Card objects, with methods for adding to and displaying contents.
@@ -264,7 +283,7 @@ class Deck:
         return drawn
 
 
-class Stack:
+class Stack(Pile):
     """A BINMAT stack.
 
     Contains a collection of Card objects, information on team association, and methods for displaying and placing cards to the stack.
@@ -282,16 +301,7 @@ class Stack:
         """
 
         self.team = team
-        self.contents: list[Card] = []
-
-    def __len__(self):
-        return len(self.contents)
-
-    def __bool__(self):
-        return bool(self.contents)
-
-    def __repr__(self) -> str:
-        return repr(self.contents)
+        super().__init__()
 
     def display(self, team: int | None = None) -> str:
         """Return the stack as displayed to the given team.
@@ -323,6 +333,18 @@ class Stack:
         card.hidden = True
         self.contents.append(card)
 
+    def __len__(self):
+        return len(self.contents)
+
+    def __bool__(self):
+        return bool(self.contents)
+
+    def __repr__(self) -> str:
+        return repr(self.contents)
+
+    def __iter__(self):
+        return iter(self.contents)
+
     def __int__(self) -> int:
         from math import log2
 
@@ -343,6 +365,36 @@ class Stack:
 
         return int(power)
 
+    def __gt__(self, other) -> bool:
+        if type(other) == Stack:
+            return int(self) > int(other)
+        else:
+            return int(self) > other
+
+    def __eq__(self, value: object) -> bool:
+        if type(value) == Stack:
+            return int(self) == int(value)
+        else:
+            return int(self) == value
+
+    def __ge__(self, other) -> bool:
+        if type(other) == Stack:
+            return int(self) >= int(other)
+        else:
+            return int(self) >= other
+
+    def __sub__(self, other):
+        if type(other) == Stack:
+            return int(self) - int(other)
+        else:
+            return int(self) - other
+
+    def __add__(self, other):
+        if type(other) == Stack:
+            return int(self) + int(other)
+        else:
+            return int(self) + other
+
 
 class Lane:
     """A BINMAT lane
@@ -358,6 +410,14 @@ class Lane:
         stacks (list[Stack]): The defender and attacker stacks in that order. Intended for referencing using team numbers.
         attacker (bool): If the lane is an attacker pseudo-lane. Is passed for Discard creation.
     """
+
+    class Resolution:
+        def __init__(self):
+            self.to_xa = []
+            self.to_xl = []
+            self.damage = 0
+            self.bounce = False
+            self.defender_win = False
 
     def __init__(self, number: str, deck: Deck, attacker: bool = False) -> None:
         """Create a BINMAT lane.
@@ -388,7 +448,7 @@ class Lane:
             return f"{f"{self.number} {self.deck.display()}\n" if self.deck else ""}{f"x{self.number} {self.discard.display()}\n" if self.discard else ""}"
         return f"l{self.number}: {self.deck.display()}\nx{self.number}: {self.discard.display()}\nd{self.number}: {self.d.display(team)}\na{self.number}: {self.a.display(team)}"
 
-    def combat(self, declaring_team: int):
+    def combat(self, declaring_team: int) -> Resolution:
         """Declare combat in the lane.
 
         Args:
@@ -398,11 +458,60 @@ class Lane:
             InvalidOp: Combat decleration was invalid.
         """
 
-        raise NotImplementedError()
+        # raise NotImplementedError()
+
+        resolution = self.Resolution()
 
         stacks = [self.d, self.a]
         if not stacks[declaring_team]:
             raise InvalidOp("Cannot declare combat with your stack empty.")
+
+        discarded = [[], []]
+
+        for _ in range(stacks[declaring_team].count("@")):
+            discarded[not declaring_team].append(stacks[not declaring_team].pop())
+        for _ in range(stacks[not declaring_team].count("@")):
+            discarded[declaring_team].append(stacks[declaring_team].pop())
+
+        for card in stacks[declaring_team]:
+            if card == "?":
+                discarded[declaring_team].append(
+                    stacks[declaring_team].pop(stacks[declaring_team].index(card))
+                )
+                resolution.bounce = True
+        for card in stacks[not declaring_team]:
+            if card == "?":
+                discarded[not declaring_team].append(
+                    stacks[not declaring_team].pop(
+                        stacks[not declaring_team].index(card)
+                    )
+                )
+                resolution.bounce = True
+
+        # for stack in stacks:
+        #     if "?" in stack:
+        #         resolution.bounce = True
+        #         return resolution
+
+        resolution.to_xa.extend(discarded[0])
+        resolution.to_xl.extend(discarded[1])
+
+        if resolution.bounce or (self.a == 0 and self.d == 0):
+            resolution.bounce = True
+            return resolution
+        if self.a >= self.d:
+            if ">" in self.a or ">" in self.d:
+                print("break damage")
+                resolution.damage = max(int(self.a), len(self.d))
+            else:
+                print("non-break damage")
+                resolution.damage = (self.a - self.d) + 1
+        elif self.a < self.d:
+            # discarded[TEAMS["a"]].extend(self.a)
+            # self.a.clear()
+            resolution.defender_win = True
+
+        return resolution
 
 
 class Hand:
@@ -625,6 +734,12 @@ class Team:
 
     def __iter__(self):
         return iter(self.players)
+
+    def __getitem__(self, key):
+        return self.players[key]
+
+    def __len__(self):
+        return len(self.players)
 
 
 class Op:
