@@ -1,7 +1,7 @@
 from random import shuffle
 from typing import Literal
 
-from .constants import TEAMS
+from .constants import TEAMS, CARD_NUM_VALUES
 from .errors import InvalidOp, DrainedDeck
 
 # __all__ = [
@@ -317,6 +317,26 @@ class Stack:
         card.hidden = True
         self.contents.append(card)
 
+    def __int__(self) -> int:
+        from math import log2
+
+        power = 0
+        value = 0
+        wild_count = 0
+        for card in self.contents:
+            value += CARD_NUM_VALUES[card.value]
+            if card.value == "*":
+                wild_count += 1
+
+        power = log2(value) if value > 0 else 0
+
+        power += wild_count
+
+        if power % 1 != 0 and not wild_count:
+            power = 0
+
+        return int(power)
+
 
 class Lane:
     """A BINMAT lane
@@ -523,7 +543,7 @@ class Player:
         """
 
         try:
-            if lane.number == "a":
+            if lane.attacker:
                 raise InvalidOp("cannot play cards to the attacker pseudo-lane")
             selected = self.hand.take(card)
             selected.face_up = face_up

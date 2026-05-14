@@ -3,7 +3,7 @@
 # from binmat.errors import *
 from binmat.game import Game
 
-game = Game(2)
+game = Game()
 
 while True:
     game.do_turn()
