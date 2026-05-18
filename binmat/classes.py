@@ -69,8 +69,10 @@ class Card:
     def __eq__(self, value: object) -> bool:
         if type(value) is str:
             return value in f"{self.value}{self.axiom}"
-        # elif type(value) is Card:
-        #     return self.axiom == value.axiom and self.value == value.value
+        elif type(value) is Card:
+            return (
+                self.axiom == value.axiom if value.axiom else True
+            ) and self.value == value.value
         else:
             return self is value
 
@@ -112,23 +114,65 @@ class Pile:
         return iter(self.contents)
 
     def append(self, card: Card) -> None:
+        """Append a card to end of pile contents.
+
+        Args:
+            card (Card): Card to be appended.
+        """
+
         self.contents.append(card)
 
     def pop(self, index: int = -1) -> Card:
+        """Remove and return card from pile contents at index (default last).
+
+        Args:
+            index (int, optional): Target index. Defaults to -1.
+
+        Raises:
+            IndexError: Pile contents empty or index is out of range.
+        """
+        if index:
+            raise IndexError
         return self.contents.pop(index)
 
-    def count(self, value) -> int:
-        return self.contents.count(value)
+    def count(self, value: Card | str) -> int:
+        """Return number of occurrences of value in pile contents."""
+
+        search_value: Card
+        if type(value) == Card:
+            search_value = value
+        elif type(value) == str and len(value) > 0:
+            card_value = value[0]
+            card_axiom = value[1] if len(value) >= 2 else ""
+            search_value = Card(card_axiom, card_value)
+
+        return self.contents.count(search_value)
 
     def extend(self, iterable) -> None:
+        """Extend pile by appending cards from the iterable to pile contents."""
         for item in iterable:
             self.append(item)
 
     def clear(self) -> None:
+        """Set pile contents to an empty list."""
         self.contents = []
 
-    def index(self, value) -> int:
-        return self.contents.index(value)
+    def index(self, value: Card | str) -> int:
+        """Return first index of value in pile contents.
+
+        Raises:
+            ValueError: The value is not present in pile contents.
+        """
+
+        search_value: Card
+        if type(value) == Card:
+            search_value = value
+        elif type(value) == str and len(value) > 0:
+            card_value = value[0]
+            card_axiom = value[1] if len(value) >= 2 else ""
+            search_value = Card(card_axiom, card_value)
+
+        return self.contents.index(search_value)
 
 
 class Discard(Pile):
@@ -141,7 +185,9 @@ class Discard(Pile):
         attacker (bool): If the discard is an attacker discard. This changes if the card is set to be face-up.
     """
 
-    def __init__(self, attacker: bool = False) -> None:
+    def __init__(
+        self, attacker: bool = False, contents: list[Card] | None = None
+    ) -> None:
         """Create a BINMAT discard.
 
         Args:
@@ -149,18 +195,8 @@ class Discard(Pile):
             contents (list[Card], optional): Discard contents. Defaults to [].
         """
 
-        # self.contents: list[Card] = contents
-        self.contents: list[Card] = []
         self.attacker: bool = attacker
-
-    def __len__(self):
-        return len(self.contents)
-
-    def __bool__(self):
-        return bool(self.contents)
-
-    def __repr__(self) -> str:
-        return repr(self.contents)
+        super().__init__(contents)
 
     def append(self, card: Card) -> None:
         """Add card to the discard.
@@ -178,7 +214,7 @@ class Discard(Pile):
             card.face_up = False
         else:
             card.face_up = True
-        self.contents.append(card)
+        super().append(card)
 
     def display(self) -> str:
         """Return the discard as displayed to players."""
@@ -207,7 +243,7 @@ class Discard(Pile):
         return out
 
 
-class Deck:
+class Deck(Pile):
     """A BINMAT deck.
 
     Contains a collection of Card objects, with methods for displaying contents and drawing from the deck.
@@ -234,18 +270,9 @@ class Deck:
             visible (bool, optional): If the top card is visible. Defaults to False.
         """
 
-        self.contents = contents if contents is not None else []
         self.visible = visible
         self.discard = discard
-
-    def __len__(self):
-        return len(self.contents)
-
-    def __bool__(self):
-        return bool(self.contents)
-
-    def __repr__(self) -> str:
-        return repr(self.contents)
+        super().__init__(contents)
 
     def display(self) -> str:
         """Return the deck as displayed to players."""
@@ -275,7 +302,7 @@ class Deck:
             if not self.discard:
                 raise DrainedDeck()
             else:
-                self.contents = self.discard.recycle()
+                self.contents.extend(self.discard.recycle())
 
         drawn = self.contents.pop()
         drawn.face_up = False
@@ -293,7 +320,7 @@ class Stack(Pile):
         team (int): The stack's associated team, as defined in constants.TEAMS. Affects how cards are updated on placement.
     """
 
-    def __init__(self, team: int = 0) -> None:
+    def __init__(self, team: int = 0, contents: list[Card] | None = None) -> None:
         """Create a BINMAT stack.
 
         Args:
@@ -301,7 +328,7 @@ class Stack(Pile):
         """
 
         self.team = team
-        super().__init__()
+        super().__init__(contents)
 
     def display(self, team: int | None = None) -> str:
         """Return the stack as displayed to the given team.
@@ -331,19 +358,7 @@ class Stack(Pile):
 
         card.team = self.team
         card.hidden = True
-        self.contents.append(card)
-
-    def __len__(self):
-        return len(self.contents)
-
-    def __bool__(self):
-        return bool(self.contents)
-
-    def __repr__(self) -> str:
-        return repr(self.contents)
-
-    def __iter__(self):
-        return iter(self.contents)
+        super().append(card)
 
     def __int__(self) -> int:
         from math import log2
@@ -514,7 +529,7 @@ class Lane:
         return resolution
 
 
-class Hand:
+class Hand(Pile):
     """A BINMAT hand.
 
     A collection of cards held by a player. Has methods for appending cards, and searching for cards based on a given search string (e.g. "9" or "a%").
@@ -526,11 +541,8 @@ class Hand:
     def __init__(self, team: int) -> None:
         """Create a BINMAT hand."""
 
-        self.contents = []
         self.team = team
-
-    def __repr__(self) -> str:
-        return repr(self.contents)
+        super().__init__()
 
     def display(self, team: int | None = None) -> str:
         """Return the hand as displayed to the given team.
@@ -547,17 +559,6 @@ class Hand:
             out.append(card.display(team))
         return " ".join(out)
 
-    def append(self, card: Card) -> None:
-        """Add card to hand.
-
-        Appends card to end of the hand contents.
-
-        Args:
-            card (Card): The card being added.
-        """
-
-        self.contents.append(card)
-
     def take(self, search: str) -> Card:
         """Take card from hand based on given search string.
 
@@ -573,16 +574,12 @@ class Hand:
             Card: The matched card.
         """
 
-        if search in self.contents:
-            return self.contents.pop(self.contents.index(search))
+        if search in self.contents and len(search) > 0:
+            value = search[0]
+            axiom = search[1] if len(search) >= 2 else ""
+            return self.contents.pop(self.contents.index(Card(axiom, value)))
         else:
             raise LookupError(f"{search} not in hand")
-
-    def __len__(self):
-        return len(self.contents)
-
-    def __bool__(self):
-        return bool(self.contents)
 
 
 class Player:
